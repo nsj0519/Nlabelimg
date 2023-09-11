@@ -1,5 +1,6 @@
 # Copyright (c) 2016 Tzutalin
 # Create by TzuTaLin <tzu.ta.lin@gmail.com>
+import math
 
 try:
     from PyQt5.QtGui import QImage
@@ -74,10 +75,25 @@ class LabelFile(object):
         for shape in shapes:
             points = shape['points']
             label = shape['label']
+            shape_type = shape['shape_type']#两种获取方法都可以
+            group_id = shape.get('group_id')
             # Add Chris
             difficult = int(shape['difficult'])
-            bnd_box = LabelFile.convert_points_to_bnd_box(points)
-            writer.add_bnd_box(bnd_box[0], bnd_box[1], bnd_box[2], bnd_box[3], label, difficult)
+            if shape_type == 'rectangle':
+                bnd_box = LabelFile.convert_points_to_bnd_box(points)
+                writer.add_bnd_box(bnd_box[0], bnd_box[1], bnd_box[2], bnd_box[3], label,group_id, shape_type,  difficult)
+            if shape_type == 'polygon' or shape_type == 'linestrip':
+                Polygon_points = LabelFile.convert_points_to_polygon_points(points)
+                writer.add_Other(Polygon_points, label, group_id, shape_type, difficult)
+            if shape_type == 'circle':
+                circle_points = LabelFile.convert_points_to_circle_points(points)
+                writer.add_Other(circle_points, label, group_id, shape_type, difficult)
+            if shape_type == 'line':
+                line_points = LabelFile.convert_points_to_line_points(points)
+                writer.add_Other(line_points, label, group_id, shape_type, difficult)
+            if shape_type == 'point':
+                point_points = LabelFile.convert_points_to_point_points(points)
+                writer.add_Other(point_points, label, group_id, shape_type, difficult)
 
         writer.save(target_file=filename)
         return
@@ -173,3 +189,63 @@ class LabelFile(object):
             y_min = 1
 
         return int(x_min), int(y_min), int(x_max), int(y_max)
+
+    def convert_points_to_polygon_points(points):
+        Pprints = []
+        for p in points:
+            x = int(p[0])
+            y = int(p[1])
+            if x < 1:
+                x = 1
+            if y < 1:
+                y = 1
+            ppoints = [x,y]
+            Pprints.append(ppoints)
+        return Pprints
+
+    def convert_points_to_circle_points(points):
+        #计算圆心上下左右的点
+        x1 = int(points[0][0])
+        y1 = int(points[0][1])
+        x2 = int(points[1][0])
+        y2 = int(points[1][1])
+        r = int(math.sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)))
+        x_min = int(x1-r)
+        y_min = int(y1-r)
+        x_max = int(x1+r)
+        y_max = int(y1+r)
+        if x_min < 1:
+            x_min = 1
+        if y_min < 1:
+            y_min = 1
+        Cprints = [[x1,y1],[x2,y2],[x_min,y1],[x1,y_min],[x_max,y1],[x1,y_max]]
+        return Cprints
+
+    def convert_points_to_line_points(points):
+        x1 = int(points[0][0])
+        if x1 < 1:
+            x1 = 1
+        y1 = int(points[0][1])
+        if y1 < 1:
+            y1 = 1
+        x2 = int(points[1][0])
+        if x2 < 1:
+            x2 = 1
+        y2 = int(points[1][1])
+        if y2 < 1:
+            y2 = 1
+        Lprints = [[x1,y1],[x2,y2]]
+        return Lprints
+
+    def convert_points_to_point_points(points):
+        x = int(points[0][0])
+        if x < 1:
+            x = 1
+        y = int(points[0][1])
+        if y < 1:
+            y = 1
+        Pprints = [[x,y]]
+        return Pprints
+
+    def convert_points_to_linestrip_points(points):
+        pass

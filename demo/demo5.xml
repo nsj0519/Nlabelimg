@@ -1,0 +1,14 @@
+<annotation>
+	<folder>demo</folder>
+	<filename>demo5.jpg</filename>
+	<path>E:\labelImg-master\demo\demo5.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>576</width>
+		<height>324</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+</annotation>

@@ -214,8 +214,9 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
         self.dock.setFeatures(self.dock.features() ^ self.dock_features)
 
         # Actions 添加操作
-        action = partial(new_action, self)#partial(偏函数)，把一个函数的参数固定住，返回一个新的函数,添加enabled=False，即该功能失效，默认是打开程序就可用
-        quit = action(get_str('quit'), self.Quet_event,#改为其他函数做处理后再调用关闭操作
+        # 通过 functools.partial(utils.newAction, self)，我们将 self 参数部分应用到 utils.newAction 函数上，返回一个新的函数。
+        action = partial(new_action, self)#partial(偏函数)的作用就是把一个函数的某些参数给固定住，返回一个新的函数，调用这个新函数会更简单。
+        quit = action(get_str('quit'), self.Quet_event,#action函数的参数是：parent, text, slot=None, shortcut=None, icon=None, tip=None, checkable=False, enabled=True)，其中parents是self
                       'Ctrl+Q', 'quit', get_str('quitApp'))
 
         open = action(get_str('openFile'), self.open_file,
@@ -268,28 +269,73 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
 
         reset_all = action(get_str('resetAll'), self.reset_all, None, 'resetall', get_str('resetAllDetail'))
 
-        color1 = action(get_str('boxLineColor'), self.choose_color1,
-                        'Ctrl+L', 'color_line', get_str('boxLineColorDetail'))
+        color1 = action(get_str('boxLineColor'), self.choose_color1, 'Ctrl+L', 'color_line', get_str('boxLineColorDetail'))
 
-        create_mode = action(get_str('crtBox'), self.set_create_mode,
-                             'w', 'new', get_str('crtBoxDetail'), enabled=False)
-        edit_mode = action(get_str('editBox'), self.set_edit_mode,
-                           'Ctrl+J', 'edit', get_str('editBoxDetail'), enabled=False)
+        create_mode = action(get_str('crtBox'), self.set_create_mode, 'w', 'new', get_str('crtBoxDetail'), enabled=False)
 
-        create = action(get_str('crtBox'), self.create_shape,
-                        'w', 'new', get_str('crtBoxDetail'), enabled=False)
-        delete = action(get_str('delBox'), self.delete_selected_shape,
-                        'Delete', 'delete', get_str('delBoxDetail'), enabled=False)
-        copy = action(get_str('dupBox'), self.copy_selected_shape,
-                      'Ctrl+D', 'copy', get_str('dupBoxDetail'),
-                      enabled=False)
+        edit_mode = action(get_str('editBox'), self.set_edit_mode, 'Ctrl+J', 'edit', get_str('editBoxDetail'), enabled=False)
 
-        advanced_mode = action(get_str('advancedMode'), self.toggle_advanced_mode,
-                               'Ctrl+Shift+A', 'expert', get_str('advancedModeDetail'),
-                               checkable=True)
-        # save_zoom = action(get_str('saveZoom'), self.toggle_advanced_mode,
-        #                        'Ctrl+Shift+Z', 'expert', get_str('saveZoomvalue'),
-        #                        checkable=True)
+        create = action(get_str('crtBox'), self.create_shape, 'w', 'new', get_str('crtBoxDetail'), enabled=False)
+
+        delete = action(get_str('delBox'), self.delete_selected_shape, 'Delete', 'delete', get_str('delBoxDetail'), enabled=False)
+
+        copy = action(get_str('dupBox'), self.copy_selected_shape, 'Ctrl+D', 'copy', get_str('dupBoxDetail'), enabled=False)
+
+        advanced_mode = action(get_str('advancedMode'), self.toggle_advanced_mode, 'Ctrl+Shift+A', 'expert', get_str('advancedModeDetail'), checkable=True)
+        createRectangleMode = action(
+            get_str("CreateRectangle"),
+            lambda: self.toggleDrawMode(False, createMode="rectangle"),
+            None,  # create_polygon: w
+            None,
+            get_str("Startdrawingrectangles"),
+            checkable=True,
+            enabled=False,  # 工具刚打开无法选择状态，加载文件后变成可选状态
+        )
+        createPolygonsMode = action(
+            get_str("CreatePolygons"),
+            lambda: self.toggleDrawMode(False, createMode="polygon"),
+            None,  # create_polygon: w
+            None,
+            get_str("Startdrawingpolygons"),
+            checkable=True,
+            enabled=False,  # 工具刚打开无法选择状态，加载文件后变成可选状态
+        )
+        createCircleMode = action(
+            get_str("CreateCircle"),
+            lambda: self.toggleDrawMode(False, createMode="circle"),
+            None,  # create_polygon: w
+            None,
+            get_str("Startdrawingcircles"),
+            checkable=True,
+            enabled=False,  # 工具刚打开无法选择状态，加载文件后变成可选状态
+        )
+        createLineMode = action(
+            get_str("CreateLine"),
+            lambda: self.toggleDrawMode(False, createMode="line"),
+            None,  # create_polygon: w
+            None,
+            get_str("Startdrawinglines"),
+            checkable=True,
+            enabled=False,  # 工具刚打开无法选择状态，加载文件后变成可选状态
+        )
+        createPointMode = action(
+            get_str("CreatePoint"),
+            lambda: self.toggleDrawMode(False, createMode="point"),
+            None,  # create_polygon: w
+            None,
+            get_str("Startdrawingpoints"),
+            checkable=True,
+            enabled=False,  # 工具刚打开无法选择状态，加载文件后变成可选状态
+        )
+        createLineStripMode = action(
+            get_str("CreateLineStrip"),
+            lambda: self.toggleDrawMode(False, createMode="linestrip"),
+            None,  # create_polygon: w
+            None,
+            get_str("Startdrawinglinestrips"),
+            checkable=True,
+            enabled=False,  # 工具刚打开无法选择状态，加载文件后变成可选状态
+        )
 
         hide_all = action(get_str('hideAllBox'), partial(self.toggle_polygons, False),
                           'Ctrl+H', 'hide', get_str('hideAllBoxDetail'),
@@ -352,7 +398,7 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
         labels.setText(get_str('showHide'))
         labels.setShortcut('Ctrl+Shift+L')
 
-        # Label list context menu.标签列表上下文菜单。
+        # Label list context menu.标签列表上下文菜单,标签列表中标签上右键弹出的选项。
         label_menu = QMenu()
         add_actions(label_menu, (edit, delete))
         self.label_list.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -366,9 +412,24 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
         self.draw_squares_option.setChecked(settings.get(SETTING_DRAW_SQUARE, False))
         self.draw_squares_option.triggered.connect(self.toggle_draw_square)
 
+        #切换标注模式（按下后拖拽）
+        self.Switching_annotation_mode = QAction(get_str('switchingMode'), self)
+        self.Switching_annotation_mode.setShortcut('Ctrl+Shift+M')
+        self.Switching_annotation_mode.setCheckable(True)
+        self.Switching_annotation_mode.setChecked(settings.get(SETTING_DRAW_MODE, False))
+        self.Switching_annotation_mode.triggered.connect(self.switching_draw_mode)
+
+
         # Store actions for further handling.存储操作以供进一步处理。
         self.actions = Struct(save=save, save_format=save_format, saveAs=save_as, open=open, close=close, resetAll=reset_all, deleteImg=delete_image,delete_all=delete_all,
                               lineColor=color1, create=create, delete=delete, edit=edit, copy=copy,
+                              createRectangleMode=createRectangleMode,
+                              createPolygonsMode=createPolygonsMode,
+                              createCircleMode=createCircleMode,
+                              createLineMode=createLineMode,
+                              createPointMode=createPointMode,
+                              createLineStripMode=createLineStripMode,
+                              createmodes=(createRectangleMode,createPolygonsMode,createCircleMode,createLineMode,createPointMode,createLineStripMode),
                               createMode=create_mode, editMode=edit_mode, advancedMode=advanced_mode,
                               shapeLineColor=shape_line_color, shapeFillColor=shape_fill_color,
                               zoom=zoom, zoomIn=zoom_in, zoomOut=zoom_out, zoomOrg=zoom_org,
@@ -378,12 +439,12 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
                                   open, open_dir, save, save_as, close, reset_all, quit),
                               beginner=(), advanced=(),
                               editMenu=(edit, copy, delete,delete_all,
-                                        None, color1, self.draw_squares_option),
+                                        None, color1, self.draw_squares_option,self.Switching_annotation_mode),
                               beginnerContext=(create, edit, copy, delete),
                               advancedContext=(create_mode, edit_mode, edit, copy,
                                                delete,shape_line_color, shape_fill_color,delete_all),
                               onLoadActive=(
-                                  close, create, create_mode, edit_mode,delete_all),
+                                  close, create, create_mode, edit_mode,createRectangleMode,createPolygonsMode,createCircleMode,createLineMode,createPointMode,createLineStripMode,delete_all),
                               onShapesPresent=(save_as, hide_all, show_all))
 
         self.menus = Struct(#添加菜单栏
@@ -436,21 +497,20 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
 
         self.menus.file.aboutToShow.connect(self.update_file_menu)
 
-        # Custom context menu for the canvas widget:画布小部件的自定义上下文菜单
+        # Custom context menu for the canvas widget:画布小部件的自定义上下文菜单,完成标注后弹出的菜单以及按shift拖动label弹出的菜单
         add_actions(self.canvas.menus[0], self.actions.beginnerContext)
         add_actions(self.canvas.menus[1], (
             action('&Copy here', self.copy_shape),
             action('&Move here', self.move_shape)))
 
         self.tools = self.toolbar('Tools')
-        self.actions.beginner = (
+        self.actions.beginner = (#添加工具栏,工具左边的竖排工具选项
             open, open_dir, change_save_dir, open_next_image, open_prev_image, verify, save, save_format, None, create, copy, delete,delete_all, None,
             zoom_in, zoom, zoom_out, fit_window, fit_width)
 
-        self.actions.advanced = (
+        self.actions.advanced = (#如果是高级模式，添加的该工具选项
             open, open_dir, change_save_dir, open_next_image, open_prev_image, save, save_format, None,
-            create_mode, edit_mode, None,
-            hide_all, show_all)
+            create_mode, edit_mode, None, hide_all, show_all)
 
         self.statusBar().showMessage('%s started.' % __appname__)
         self.statusBar().show()
@@ -588,16 +648,17 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
             self.dock.setFeatures(self.dock.features() ^ self.dock_features)
 
     def populate_mode_actions(self):
-        if self.beginner():
+        if self.beginner():#如果是初学者模式
             tool, menu = self.actions.beginner, self.actions.beginnerContext
-        else:
+        else:#否则是高级模式,
             tool, menu = self.actions.advanced, self.actions.advancedContext
+        #经过上面判断是初学者模式还是高级模式，然后将对应的action添加到tools和menus中，tools是工具栏，menus是菜单栏
         self.tools.clear()
         add_actions(self.tools, tool)
         self.canvas.menus[0].clear()
         add_actions(self.canvas.menus[0], menu)
         self.menus.edit.clear()
-        actions = (self.actions.create,) if self.beginner()\
+        actions = (self.actions.create,)+self.actions.createmodes if self.beginner()\
             else (self.actions.createMode, self.actions.editMode)
         add_actions(self.menus.edit, actions + self.actions.editMenu)
 
@@ -624,6 +685,8 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
             z.setEnabled(value)
         for action in self.actions.onLoadActive:
             action.setEnabled(value)
+        self.toggleDrawMode(False,None)
+
 
     def queue_event(self, function):
         QTimer.singleShot(0, function)
@@ -695,7 +758,6 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
     def create_shape(self):
         assert self.beginner()
         self.canvas.set_editing(False)
-        self.actions.create.setEnabled(False)
 
     def toggle_drawing_sensitive(self, drawing=True):
         """In the middle of drawing, toggling between modes should be disabled.在绘图过程中，应该禁止在模式之间切换"""
@@ -705,7 +767,7 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
             print('Cancel creation.')
             self.canvas.set_editing(True)
             self.canvas.restore_cursor()
-            self.actions.create.setEnabled(True)
+            # self.actions.create.setEnabled(True)
 
     def toggle_draw_mode(self, edit=True):#切换模式
         self.canvas.set_editing(edit)
@@ -743,11 +805,24 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
     def edit_label(self):
         if not self.canvas.editing():
             return
-        item = self.current_item()
+        item = self.current_item()#选中的label_box选项
         if not item:
             return
-        text = self.label_dialog.pop_up(item.text())
+        shape = self.items_to_shapes[item]#选中的label_box对应的shape
+
+        if shape is None:
+            return
+        text,group_id = self.label_dialog.pop_up(text=shape.label,group_id=shape.group_id)
+
+        if text is None:
+            return
         if text is not None:
+            shape.label = text
+            shape.group_id = group_id
+            if shape.group_id is None:
+                text = shape.label
+            else:
+                text = "{} ({})".format(shape.label, shape.group_id)
             item.setText(text)
             item.setBackground(generate_color_by_text(text))
             self.set_dirty()
@@ -806,7 +881,11 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
 
     def add_label(self, shape):
         shape.paint_label = self.display_label_option.isChecked()
-        item = HashableQListWidgetItem(shape.label)
+        if shape.group_id is None:
+            text = shape.label
+        else:
+            text = "{} ({})".format(shape.label, shape.group_id)
+        item = HashableQListWidgetItem(text)
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
         item.setCheckState(Qt.Checked)
         item.setBackground(generate_color_by_text(shape.label))
@@ -829,8 +908,8 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
 
     def load_labels(self, shapes):
         s = []
-        for label, points, line_color, fill_color, difficult in shapes:
-            shape = Shape(label=label)
+        for label,group_id,shape_type, points, line_color, fill_color, difficult in shapes:
+            shape = Shape(label=label,group_id=group_id,shape_type=shape_type)
             for x, y in points:
 
                 # Ensure the labels are within the bounds of the image. If not, fix them.确保标签在图像的范围内。如果不是，就修复它们。
@@ -838,7 +917,7 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
                 if snapped:
                     self.set_dirty()
 
-                shape.add_point(QPointF(x, y))
+                shape.addPoint(QPointF(x, y))
             shape.difficult = difficult
             shape.close()
             s.append(shape)
@@ -859,7 +938,19 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
 
     def update_combo_box(self):#控制label类型的显示
         # Get the unique labels and add them to the Combobox.获取唯一的标签，并将它们添加到组合框中。
-        items_text_list = [str(self.label_list.item(i).text()) for i in range(self.label_list.count())]
+        # items_text_list = [str(self.label_list.item(i).text()) for i in range(self.label_list.count())]
+        # unique_text_list = list(set(items_text_list))
+        # # Add a null row for showing all the labels添加一个空行来显示所有的标签
+        # unique_text_list.append("")
+        # for i in unique_text_list:
+        #     if i not in self.combo_list:
+        #         self.combo_list.append(i)
+        # self.combo_list.sort()
+        # self.combo_box.update_items(self.combo_list)
+        # # self.combo_box.cb.setCurrentText(",".join(self.combo_text_list))
+        # self.qline.setText(",".join(self.combo_text_list))
+        # self.combo_set_show_label()
+        items_text_list = [str(shape.label) for shape in self.items_to_shapes.values()]
         unique_text_list = list(set(items_text_list))
         # Add a null row for showing all the labels添加一个空行来显示所有的标签
         unique_text_list.append("")
@@ -872,7 +963,7 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
         self.qline.setText(",".join(self.combo_text_list))
         self.combo_set_show_label()
 
-    def save_labels(self, annotation_file_path):
+    def save_labels(self, annotation_file_path):#保存标注文件
         annotation_file_path = ustr(annotation_file_path)
         if self.label_file is None:
             self.label_file = LabelFile()
@@ -880,9 +971,11 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
 
         def format_shape(s):
             return dict(label=s.label,
+                        group_id = s.group_id,
                         line_color=s.line_color.getRgb(),
                         fill_color=s.fill_color.getRgb(),
                         points=[(p.x(), p.y()) for p in s.points],
+                        shape_type=s.shape_type,
                         # add chris
                         difficult=s.difficult)
 
@@ -890,10 +983,10 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
 
         # Can add different annotation formats here可以在这里添加不同的注释格式
         try:
-            if self.label_file_format == LabelFileFormat.PASCAL_VOC:
-                if annotation_file_path[-4:].lower() != ".xml":
+            if self.label_file_format == LabelFileFormat.PASCAL_VOC:#如果是voc格式
+                if annotation_file_path[-4:].lower() != ".xml":#标注文件后缀不为xml的情况下
                     annotation_file_path += XML_EXT
-                if self.pure_mode.isChecked() and len(shapes) == 0:
+                if self.pure_mode.isChecked() and len(shapes) == 0:#如果是纯净模式且标注框数量为0，删除已有的空标注文件。
                     if os.path.exists(annotation_file_path):
                         os.remove(annotation_file_path)
                         return True
@@ -954,19 +1047,22 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
         self.combo_set_show_label()
         self.qline.setText(",".join(self.combo_text_list))
     def combo_set_show_label(self):
-        for i in range(self.label_list.count()):
+        # for i in range(self.label_list.count()):
+        #     item = self.label_list.item(i)
+        #     if self.combo_text_list == []:
+        #         item.setCheckState(2)
+        #     elif self.items_to_shapes[item].lable in self.combo_text_list:
+        #         item.setCheckState(2)
+        #     else:
+        #         item.setCheckState(0)
+        for item,shape in self.items_to_shapes.items():
             if self.combo_text_list == []:
-                self.label_list.item(i).setCheckState(2)
-            elif self.label_list.item(i).text() in self.combo_text_list:
-                self.label_list.item(i).setCheckState(2)
+                item.setCheckState(2)
+            elif shape.label in self.combo_text_list:
+                item.setCheckState(2)
             else:
-                self.label_list.item(i).setCheckState(0)
-            # if self.combo_text == "":
-            #     self.label_list.item(i).setCheckState(2)
-            # elif self.combo_text != self.label_list.item(i).text():
-            #     self.label_list.item(i).setCheckState(0)
-            # else:
-            #     self.label_list.item(i).setCheckState(2)
+                item.setCheckState(0)
+
     def label_selection_changed(self):#通过items选择box框
         item = self.current_item()
         if item and self.canvas.editing():
@@ -978,20 +1074,78 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
 
     def label_item_changed(self, item):
         shape = self.items_to_shapes[item]
-        label = item.text()#
-        if label != shape.label:
-            shape.label = item.text()
-            shape.line_color = generate_color_by_text(shape.label)
-            self.set_dirty()
-        else:  # User probably changed item visibility用户可能改变了项目可见性
-            self.canvas.set_shape_visible(shape, item.checkState() == Qt.Checked)
+        # label = item.text()#
+        # if label != shape.label:
+        #     shape.label = item.text()
+        #     shape.line_color = generate_color_by_text(shape.label)
+        #     self.set_dirty()
+        # else:  # User probably changed item visibility用户可能改变了项目可见性
+        #     self.canvas.set_shape_visible(shape, item.checkState() == Qt.Checked)
+        shape.line_color = generate_color_by_text(shape.label)
+        self.set_dirty()
+        self.canvas.set_shape_visible(shape, item.checkState() == Qt.Checked)
 
+
+    def toggleDrawMode(self, edit=True, createMode=None):
+        # self.canvas.set_editing(edit)
+        if self.canvas.createMode == None and createMode == None:
+            self.actions.createRectangleMode.setChecked(True)
+            self.canvas.createMode = "rectangle"
+        elif createMode != None:
+            self.canvas.createMode = createMode
+            if createMode == "rectangle":
+                self.actions.createRectangleMode.setChecked(True)
+                self.actions.createPolygonsMode.setChecked(False)
+                self.actions.createCircleMode.setChecked(False)
+                self.actions.createLineMode.setChecked(False)
+                self.actions.createPointMode.setChecked(False)
+                self.actions.createLineStripMode.setChecked(False)
+            elif createMode == "polygon":
+                self.actions.createRectangleMode.setChecked(False)
+                self.actions.createPolygonsMode.setChecked(True)
+                self.actions.createCircleMode.setChecked(False)
+                self.actions.createLineMode.setChecked(False)
+                self.actions.createPointMode.setChecked(False)
+                self.actions.createLineStripMode.setChecked(False)
+            elif createMode == "line":
+                self.actions.createRectangleMode.setChecked(False)
+                self.actions.createPolygonsMode.setChecked(False)
+                self.actions.createCircleMode.setChecked(False)
+                self.actions.createLineMode.setChecked(True)
+                self.actions.createPointMode.setChecked(False)
+                self.actions.createLineStripMode.setChecked(False)
+            elif createMode == "point":
+                self.actions.createRectangleMode.setChecked(False)
+                self.actions.createPolygonsMode.setChecked(False)
+                self.actions.createCircleMode.setChecked(False)
+                self.actions.createLineMode.setChecked(False)
+                self.actions.createPointMode.setChecked(True)
+                self.actions.createLineStripMode.setChecked(False)
+            elif createMode == "circle":
+                self.actions.createRectangleMode.setChecked(False)
+                self.actions.createPolygonsMode.setChecked(False)
+                self.actions.createCircleMode.setChecked(True)
+                self.actions.createLineMode.setChecked(False)
+                self.actions.createPointMode.setChecked(False)
+                self.actions.createLineStripMode.setChecked(False)
+            elif createMode == "linestrip":
+                self.actions.createRectangleMode.setChecked(False)
+                self.actions.createPolygonsMode.setChecked(False)
+                self.actions.createCircleMode.setChecked(False)
+                self.actions.createLineMode.setChecked(False)
+                self.actions.createPointMode.setChecked(False)
+                self.actions.createLineStripMode.setChecked(True)
+            else:
+                raise ValueError("Unsupported createMode: %s" % createMode)
+        self.actions.edit.setEnabled(not edit)#选择标注模式后，编辑模式可选
     # Callback functions:
-    def new_shape(self):#创建box框调用
+    def new_shape(self):#创建box框时弹出对话框，给box赋予标签信息
         """Pop-up and give focus to the label editor.弹出并将焦点放在标签编辑器上
 
         position MUST be in global coordinates.position必须是全局坐标
         """
+        text = None
+        group_id = None
         if not self.use_default_label_checkbox.isChecked() or not self.default_label_text_line.text():#如果不使用默认标签
             if len(self.label_hist) > 0:
                 self.label_dialog = LabelDialog(
@@ -1001,7 +1155,7 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
             if self.single_class_mode.isChecked() and self.lastLabel:
                 text = self.lastLabel#把text设置为最后标注框的标签
             else:#没有上一个标签的时候，text等于自己选择或者输入的标签
-                text = self.label_dialog.pop_up(text=self.prev_label_text)
+                text,group_id = self.label_dialog.pop_up(text=self.prev_label_text)
                 self.lastLabel = text#把lastlabel设置为刚才自己选择或输入的标签
         else:#否者使用默认标签的话，text等于默认标签里面的值
             text = self.default_label_text_line.text()
@@ -1009,9 +1163,10 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
         # Add Chris
         self.diffc_button.setChecked(False)#把difficult设置为未选择状态
         if text is not None:
-            self.prev_label_text = text
+            self.prev_lwabel_text = text
             generate_color = generate_color_by_text(text)#调用函数返回颜色属性，传入的参数是标签，所以相同标签的标注框颜色相同
             shape = self.canvas.set_last_label(text, generate_color, generate_color)#返回shape对象
+            shape.group_id = group_id
             self.add_label(shape)#把shape对象
             if self.beginner():  # Switch to edit mode.
                 self.canvas.set_editing(True)
@@ -1024,8 +1179,7 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
                 self.label_hist.append(text)
         else:#否则画了框以后，但是最后没为其设置标签(取消)，那么画布上重置刚才画的线
             # self.canvas.undoLastLine()
-            self.canvas.reset_all_lines()
-
+            self.canvas.reset_all_lines()#清除当前标注的shape对象，会触发drawingPolygon信号,进入编辑状态
     def scroll_request(self, delta, orientation):
         units = - delta / (8 * 15)
         bar = self.scroll_bars[orientation]
@@ -1301,6 +1455,7 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
         settings[SETTING_SINGLE_CLASS] = self.single_class_mode.isChecked()
         settings[SETTING_PAINT_LABEL] = self.display_label_option.isChecked()
         settings[SETTING_DRAW_SQUARE] = self.draw_squares_option.isChecked()
+        settings[SETTING_DRAW_MODE] = self.Switching_annotation_mode.isChecked()
         settings[SETTING_LABEL_FILE_FORMAT] = self.label_file_format
         if self.cur_img_idx + 1 < self.img_count:#不是最后一个文件时，记录节点
             settings[self.last_open_dir] = self.last_open_file#把关闭前操作的文件写入序列化
@@ -1310,6 +1465,7 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
         settings.save()
 
     def load_recent(self, filename):
+        
         if self.may_continue():
             self.load_file(filename)
 
@@ -1733,6 +1889,10 @@ class MainWindow(QMainWindow, WindowMixin):#MainWindow
 
     def toggle_draw_square(self):
         self.canvas.set_drawing_shape_to_square(self.draw_squares_option.isChecked())
+
+    def switching_draw_mode(self):
+        self.canvas.set_drawing_shape_to_double(self.Switching_annotation_mode.isChecked())
+
 
 def inverted(color):
     return QColor(*[255 - v for v in color.getRgb()])

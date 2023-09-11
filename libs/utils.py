@@ -1,4 +1,7 @@
 from math import sqrt
+
+import numpy as np
+
 from libs.ustr import ustr
 import hashlib
 import re
@@ -28,11 +31,21 @@ def new_button(text, icon=None, slot=None):
     return b
 
 #配置操作
-def new_action(parent, text, slot=None, shortcut=None, icon=None,
-               tip=None, checkable=False, enabled=True):
+def new_action(
+        parent,
+        text,
+        slot=None,
+        shortcut=None,
+        icon=None,
+        tip=None,
+        checkable=False,
+        enabled=True,
+        create_type=None):
     """Create a new action and assign callbacks, shortcuts, etc.，创建一个新动作并分配回调、快捷方式等。"""
     a = QAction(text, parent)
+    a.create_type = create_type
     if icon is not None:#如果有设置图标
+        a.setIconText(text.replace(" ", "\n"))  # 设置功能图标文本
         a.setIcon(new_icon(icon))
     if shortcut is not None:#如果有设置快捷键
         if isinstance(shortcut, (list, tuple)):#如果该快捷键参数是list或者tuple
@@ -63,6 +76,9 @@ def add_actions(widget, actions):
 def label_validator():
     return QRegExpValidator(QRegExp(r'^[^ \t].+'), None)
 
+def group_validator():
+    return QRegExpValidator(QRegExp(r"\d*"), None)
+
 
 class Struct(object):
 
@@ -73,6 +89,18 @@ class Struct(object):
 def distance(p):
     return sqrt(p.x() * p.x() + p.y() * p.y())
 
+def distancetoline(point, line):
+    p1, p2 = line
+    p1 = np.array([p1.x(), p1.y()])
+    p2 = np.array([p2.x(), p2.y()])
+    p3 = np.array([point.x(), point.y()])
+    if np.dot((p3 - p1), (p2 - p1)) < 0:
+        return np.linalg.norm(p3 - p1)
+    if np.dot((p3 - p2), (p1 - p2)) < 0:
+        return np.linalg.norm(p3 - p2)
+    if np.linalg.norm(p2 - p1) == 0:
+        return np.linalg.norm(p3 - p1)
+    return np.linalg.norm(np.cross(p2 - p1, p1 - p3)) / np.linalg.norm(p2 - p1)
 
 def format_shortcut(text):
     mod, key = text.split('+', 1)

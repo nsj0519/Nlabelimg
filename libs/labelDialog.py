@@ -6,7 +6,7 @@ except ImportError:
     from PyQt4.QtGui import *
     from PyQt4.QtCore import *
 
-from libs.utils import new_icon, label_validator, trimmed
+from libs.utils import new_icon, label_validator,group_validator, trimmed
 
 BB = QDialogButtonBox#多按钮控件
 
@@ -19,7 +19,12 @@ class LabelDialog(QDialog):#label对话框
         self.edit = QLineEdit()#单行文本控件
         self.edit.setText(text)#设置内容为text
         self.edit.setValidator(label_validator())#设置输入校验
-        self.edit.editingFinished.connect(self.post_process)
+        self.edit.editingFinished.connect(self.post_process)#editingFinished是一个信号，它在用户完成编辑一个可编辑的小部件
+        self.edit_group_id = QLineEdit()
+        self.edit_group_id.setPlaceholderText("Group ID")
+        self.edit_group_id.setValidator(group_validator())  # 设置输入校验
+        self.edit_group_id.editingFinished.connect(self.group_process)
+
 
         model = QStringListModel()#创建数据模型，该模型提供编辑和修改字符串列表数据的函数
         model.setStringList(list_item)#为数据模型设置Stringlist
@@ -28,7 +33,11 @@ class LabelDialog(QDialog):#label对话框
         self.edit.setCompleter(completer)#将添加数据后的自动补全模型绑定到edit文本控件当中
 
         layout = QVBoxLayout()#垂直布局
-        layout.addWidget(self.edit)#再layout中添加控件
+        layout_edit = QHBoxLayout()
+        layout_edit.addWidget(self.edit, 6)
+        layout_edit.addWidget(self.edit_group_id, 2)
+        layout.addLayout(layout_edit)
+        # layout.addWidget(self.edit)#再layout中添加控件
         self.button_box = bb = BB(BB.Ok | BB.Cancel, Qt.Horizontal, self)#多按钮控件，ok和cancel按钮水平布局
         bb.button(BB.Ok).setIcon(new_icon('done'))#为ok按钮设置图标
         bb.button(BB.Cancel).setIcon(new_icon('undo'))
@@ -52,8 +61,14 @@ class LabelDialog(QDialog):#label对话框
 
     def post_process(self):
         self.edit.setText(trimmed(self.edit.text()))
-
-    def pop_up(self, text='', move=True):
+    def group_process(self):
+        self.edit_group_id.setText(trimmed(self.edit_group_id.text()))
+    def getGroupId(self):
+        group_id = self.edit_group_id.text()
+        if group_id:
+            return int(group_id)
+        return None
+    def pop_up(self, text=None, move=True, group_id=None):
         """
         Shows the dialog, setting the current text to `text`, and blocks the caller until the user has made a choice.
         If the user entered a label, that label is returned, otherwise (i.e. if the user cancelled the action)
@@ -61,8 +76,10 @@ class LabelDialog(QDialog):#label对话框
     如果用户输入了一个标签，则返回该标签，否则(例如，如果用户取消了操作)
     没有返回。
         """
+        print(text,group_id)
         self.edit.setText(text)
-        self.edit.setSelection(0, len(text))
+        self.edit_group_id.setText(str(group_id))
+        self.edit.setSelection(0, len(text))#默认选中文本
         self.edit.setFocus(Qt.PopupFocusReason)
         if move:
             cursor_pos = QCursor.pos()
@@ -75,7 +92,17 @@ class LabelDialog(QDialog):#label对话框
             if cursor_pos.y() > max_global.y():
                 cursor_pos.setY(max_global.y())
             self.move(cursor_pos)
-        return trimmed(self.edit.text()) if self.exec_() else None
+        if text is None:
+            text = self.edit.text()
+        if group_id is None:
+            self.edit_group_id.clear()
+        if self.exec_():
+            return (
+                self.edit.text(),
+                self.getGroupId(),
+            )
+        else:
+            return None, None
 
     def list_item_click(self, t_qlist_widget_item):#当点击列表中的哪个label后edit控件中的text设置为哪个label，选标签操作
         text = trimmed(t_qlist_widget_item.text())

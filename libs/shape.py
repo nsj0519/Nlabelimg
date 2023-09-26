@@ -77,7 +77,7 @@ class Shape(object):
             return True
         return False
     def canAddPoint(self):
-        return self.shape_type in ["polygon", "linestrip"]
+        return self.shape_type in ["polygon", "linestrip","rectangle"]
     # def add_point(self, point):
     #     if not self.reach_max_points():
     #         self.points.append(point)
@@ -91,7 +91,7 @@ class Shape(object):
         self.point_labels.insert(i, label)
 
     def removePoint(self, i):
-        if not self.canAddPoint():
+        if not self.canAddPoint() or self.shape_type == "rectangle":
             # logger.warning(
             #     "Cannot remove point from: shape_type=%r",
             #     self.shape_type,
@@ -281,7 +281,19 @@ class Shape(object):
     def bounding_rect(self):
         return self.make_path().boundingRect()
 
-    def move_by(self, offset):
+    def move_by(self, offset,pixma_w,pixma_h):
+        if self.shape_type == "circle":
+            if self.points[0].x()<=0 and offset.x()<0:
+                return
+            if self.points[0].x()>=pixma_w and offset.x()>0:
+                return
+            if self.points[0].y()<=0 and offset.y()<0:
+                return
+            if self.points[0].y()>=pixma_h and offset.y()>0:
+                return
+        # and  (self.points[0].x()<=0 or self.points[0].x()>= pixma_w or self.points[0].y()<=0 or self.points[0].y()>=pixma_h):
+        #     print("out of range")
+        #     return
         self.points = [p + offset for p in self.points]
 
     def move_vertex_by(self, i, offset):

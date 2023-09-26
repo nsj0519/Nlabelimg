@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 import sys
 import os
 from xml.etree import ElementTree
@@ -71,8 +71,6 @@ class YOLOWriter:
             # print (classIndex, x_center, y_center, w, h)
             out_file.write("%d %.6f %.6f %.6f %.6f\n" % (class_index, x_center, y_center, w, h))
 
-        # print (classList)
-        # print (out_class_file)
         for c in class_list:
             out_class_file.write(c+'\n')
 
@@ -95,12 +93,9 @@ class YoloReader:
         else:
             self.class_list_path = class_list_path
 
-        # print (file_path, self.class_list_path)
-
         classes_file = open(self.class_list_path, 'r')
         self.classes = classes_file.read().strip('\n').split('\n')
 
-        # print (self.classes)
 
         img_size = [image.height(), image.width(),
                     1 if image.isGrayscale() else 3]

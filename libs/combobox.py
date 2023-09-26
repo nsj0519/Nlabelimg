@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys
 try:
     from PyQt5.QtWidgets import QWidget, QHBoxLayout, QComboBox, QLineEdit

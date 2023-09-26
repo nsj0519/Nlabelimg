@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 try:
     from PyQt5.QtGui import *
     from PyQt5.QtCore import *
@@ -65,7 +65,7 @@ class Canvas(QWidget):
         self.movingShape = False
         self.snapping = True
         self.hShapeIsSelected = False
-        self._painter = QPainter()#我们创建了一个QPainter对象，并设置了画笔颜色和画刷颜色。然后，我们使用drawRect方法绘制一个矩形
+        self._painter = QPainter()
         self._cursor = CURSOR_DEFAULT
         # Menus:
         self.menus = (QMenu(), QMenu())
@@ -252,10 +252,15 @@ class Canvas(QWidget):
                     current_height = abs(point1.y() - point3.y())
                     self.parent().window().label_coordinates.setText(
                             'Width: %d, Height: %d / X: %d; Y: %d' % (current_width, current_height, pos.x(), pos.y()))
+            elif self.selected_Edge() and not self.snapping:#选择边
+                self.bounded_move_edge(pos)
+                self.repaint()
+                self.movingShape = True
+                self.prev_point = pos
+                self.calculate_offsets(self.selected_shape, pos)
             elif self.selected_shape and self.prev_point:
                 self.override_cursor(CURSOR_MOVE)
                 self.bounded_move_shape(self.selected_shape, pos)
-                # self.shapeMoved.emit()
                 self.movingShape = True
                 self.repaint()
                 # Display annotation width and height while moving shape
@@ -309,12 +314,13 @@ class Canvas(QWidget):
                 self.update()
                 break
             elif index_edge is not None and shape.canAddPoint():
-                if self.selected_vertex():
+                if self.selected_Edge():
                     self.h_shape.highlight_clear()
                 self.prevhVertex = self.h_vertex
                 self.h_vertex = None
                 self.prevhShape = self.h_shape = shape
                 self.prevhEdge = self.hEdge = index_edge
+                shape.highlight_vertex(index, shape.MOVE_VERTEX)
                 self.override_cursor(CURSOR_POINT)
                 self.setToolTip(self.tr("Click to create point"))
                 self.setStatusTip(self.toolTip())
@@ -375,7 +381,6 @@ class Canvas(QWidget):
         pos = self.transform_pos(ev.pos())
         if ev.button() == Qt.LeftButton:
             if self.drawing():
-                # self.handle_drawing(pos)
                 if self.current:
                     # Add point to existing shape.向现有形状添加点
                     if self.createMode == "polygon":#如果是标注多边形，可以一直添加点，直到最后一点和第一点重合，此时结束该目标的标注
@@ -416,8 +421,9 @@ class Canvas(QWidget):
                         self.update()
 
             else:
-                if self.selected_Edge():#如果编辑时点击线条边缘
-                    self.addPointToEdge()#在线条上添加一个点
+                if self.selected_Edge():#如果编辑时点击线条边缘,如果是polygon和linestrip，那么可以在线条上添加一个点.是rectangle，可以拖拽边改变大小
+                    if self.prevhShape.shape_type in ["polygon", "linestrip"]:
+                        self.addPointToEdge()#在线条上添加一个点
                 elif (
                     self.selected_vertex()#否则选中顶点，并且按下shift键
                     and int(ev.modifiers()) == Qt.ShiftModifier
@@ -541,6 +547,12 @@ class Canvas(QWidget):
             shape.highlight_vertex(index, shape.MOVE_VERTEX)#高亮顶点
             self.select_shape(shape)
             return self.h_vertex
+        if self.selected_Edge():  # A vertex is marked for selection.标记一个顶点以供选择
+            index, shape = self.hEdge, self.h_shape
+            shape.highlight_vertex(index, shape.MOVE_VERTEX)#高亮顶点
+            self.select_shape(shape)
+            self.calculate_offsets(shape, point)
+            return self.h_vertex
         # for shape in reversed(self.shapes):#reversed()函数返回一个反转的迭代器。将所有的标注在列表中反转，这样最先画框就在最后面，最先找到上面的框被其他框覆盖不可选中
         # for shape in reversed([s for s in self.shapes if self.isVisible(s)]):
         for shape in sorted([s for s in self.shapes if self.isVisible(s)],key=lambda shape_i: (shape_i.bounding_rect().x(), shape_i.bounding_rect().y()),reverse=True):  # 按照xy坐标从大到小排序，处于包含状态的框就可以被优先选中
@@ -591,7 +603,7 @@ class Canvas(QWidget):
             shift_pos = QPointF(opposite_point.x() + direction_x * min_size - point.x(),
                                 opposite_point.y() + direction_y * min_size - point.y())
         else:
-            shift_pos = pos - point
+            shift_pos = pos - point#shift_pos是鼠标的偏移，用于调整顶点位置
         if shape.shape_type == "rectangle":
             shape.move_vertex_by(index, shift_pos)
             left_index = (index + 1) % 4
@@ -609,25 +621,52 @@ class Canvas(QWidget):
         else:
             shape.move_vertex_by(index, shift_pos)
 
+    def bounded_move_edge(self, pos):
+        index, shape = self.hEdge, self.h_shape
+        if self.out_of_pixmap(pos):
+            size = self.pixmap.size()
+            clipped_x = min(max(0, pos.x()), size.width())
+            clipped_y = min(max(0, pos.y()), size.height())
+            pos = QPointF(clipped_x, clipped_y)
+        if shape.shape_type == "rectangle" and not self.draw_square:
+            point_index_1 = (index-1) % 4  # 边的第一个点
+            point_index_2 = index % 4 # 边的第二个点
+            point_1 = shape[point_index_1]
+            point_2 = shape[point_index_2]
+            if index % 2 == 0:#只改变边的两端点的y坐标
+                shift_pos = QPointF(pos.x() - point_1.x(), 0)
+            else:#只改变边的两端点的x坐标
+                shift_pos = QPointF(0, pos.y() - point_1.y())
+            shape.move_vertex_by(point_index_1, shift_pos)
+            shape.move_vertex_by(point_index_2, shift_pos)
+        else:
+            return
 
     def bounded_move_shape(self, shape, pos):
-        if self.out_of_pixmap(pos):
-            return False  # No need to move
-        o1 = pos + self.offsets[0]
-        if self.out_of_pixmap(o1):
-            pos -= QPointF(min(0, o1.x()), min(0, o1.y()))
-        o2 = pos + self.offsets[1]
-        if self.out_of_pixmap(o2):
-            pos += QPointF(min(0, self.pixmap.width() - o2.x()),
-                           min(0, self.pixmap.height() - o2.y()))
-        # The next line tracks the new position of the cursor
-        # relative to the shape, but also results in making it
-        # a bit "shaky" when nearing the border and allows it to
-        # go outside of the shape's area for some reason. XXX
-        # self.calculateOffsets(self.selectedShape, pos)
+        pixma_w = self.pixmap.width()
+        pixma_h = self.pixmap.height()
+        if shape.shape_type != "circle":
+            if self.out_of_pixmap(pos):
+                return False  # No need to move
+
+            # offsets的是鼠标按下时候相对于目标左上点对于图像的左上点偏移量。
+            # 最终o1和o2就是图像的外接矩形框左上、右下坐标
+            o1 = pos + self.offsets[0]
+            if self.out_of_pixmap(o1):
+                pos -= QPointF(min(0, o1.x()), min(0, o1.y()))
+            o2 = pos + self.offsets[1]
+            if self.out_of_pixmap(o2):
+                pos += QPointF(min(0, pixma_w - o2.x()),
+                               min(0, pixma_h - o2.y()))
+            # The next line tracks the new position of the cursor
+            # relative to the shape, but also results in making it
+            # a bit "shaky" when nearing the border and allows it to
+            # go outside of the shape's area for some reason. XXX
+            # self.calculateOffsets(self.selectedShape, pos)
         dp = pos - self.prev_point
         if dp:
-            shape.move_by(dp)
+            print(dp)
+            shape.move_by(dp,pixma_w,pixma_h)
             self.prev_point = pos
             return True
         return False
@@ -750,11 +789,11 @@ class Canvas(QWidget):
 
     def finalise(self):#完成一个shape对象的标注，将其加入到shapes列表中，弹出新建标注框的对话框，赋予信息.如果对话框取消，则删除该shape对象并且进入编辑状态
         assert self.current
-        # if self.current.points[0] == self.current.points[-1]:
-        #     self.current = None
-        #     self.drawingPolygon.emit(False)
-        #     self.update()
-        #     return
+        if self.createMode != "point" and self.current.points[0] == self.current.points[-1]:
+            self.current = None
+            self.drawingPolygon.emit(False)
+            self.update()
+            return
         self.current.close()
         self.shapes.append(self.current)
         self.current = None
@@ -810,7 +849,7 @@ class Canvas(QWidget):
             self.update()
         elif key == Qt.Key_Return and self.can_close_shape():
             self.finalise()
-        elif modifiers == Qt.AltModifier:
+        elif modifiers == Qt.ControlModifier:
             self.snapping = False
         elif key == Qt.Key_Left and self.selected_shape:
             self.move_one_pixel('Left')
@@ -822,47 +861,41 @@ class Canvas(QWidget):
             self.move_one_pixel('Down')
     def keyReleaseEvent(self, ev):
         modifiers = ev.modifiers()
-        if self.drawing():
-            if int(modifiers) == 0:#表示没有任何键被按下
-                self.snapping = True
-        elif self.editing():
-            if self.movingShape and self.selectedShapes:
-                index = self.shapes.index(self.selectedShapes[0])
-                if (
-                    self.shapesBackups[-1][index].points
-                    != self.shapes[index].points
-                ):
-                    self.storeShapes()
-                    self.shapeMoved.emit()
-                self.movingShape = False
+        if int(modifiers) == 0:#表示没有任何键被按下
+            self.snapping = True
+        # if self.editing():
+        #     if self.movingShape and self.selectedShapes:
+        #         index = self.shapes.index(self.selectedShapes[0])
+        #         if (
+        #             self.shapesBackups[-1][index].points
+        #             != self.shapes[index].points
+        #         ):
+        #             self.storeShapes()
+        #             self.shapeMoved.emit()
+        #         self.movingShape = False
 
     def move_one_pixel(self, direction):
         # print(self.selectedShape.points)
         if direction == 'Left' and not self.move_out_of_bound(QPointF(-1.0, 0)):
             # print("move Left one pixel")
-            self.selected_shape.points[0] += QPointF(-1.0, 0)
-            self.selected_shape.points[1] += QPointF(-1.0, 0)
-            self.selected_shape.points[2] += QPointF(-1.0, 0)
-            self.selected_shape.points[3] += QPointF(-1.0, 0)
+            for point in self.selected_shape.points:
+                point += QPointF(-1.0, 0)
+
         elif direction == 'Right' and not self.move_out_of_bound(QPointF(1.0, 0)):
             # print("move Right one pixel")
-            self.selected_shape.points[0] += QPointF(1.0, 0)
-            self.selected_shape.points[1] += QPointF(1.0, 0)
-            self.selected_shape.points[2] += QPointF(1.0, 0)
-            self.selected_shape.points[3] += QPointF(1.0, 0)
+            for point in self.selected_shape.points:
+                point += QPointF(1.0, 0)
+
         elif direction == 'Up' and not self.move_out_of_bound(QPointF(0, -1.0)):
             # print("move Up one pixel")
-            self.selected_shape.points[0] += QPointF(0, -1.0)
-            self.selected_shape.points[1] += QPointF(0, -1.0)
-            self.selected_shape.points[2] += QPointF(0, -1.0)
-            self.selected_shape.points[3] += QPointF(0, -1.0)
+            for point in self.selected_shape.points:
+                point += QPointF(0, -1.0)
+
         elif direction == 'Down' and not self.move_out_of_bound(QPointF(0, 1.0)):
             # print("move Down one pixel")
-            self.selected_shape.points[0] += QPointF(0, 1.0)
-            self.selected_shape.points[1] += QPointF(0, 1.0)
-            self.selected_shape.points[2] += QPointF(0, 1.0)
-            self.selected_shape.points[3] += QPointF(0, 1.0)
-        # self.shapeMoved.emit()
+            for point in self.selected_shape.points:
+                point += QPointF(0, 1.0)
+
         self.movingShape = True
         self.repaint()
 
